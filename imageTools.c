@@ -1,5 +1,6 @@
 #include "imageTools.h"
 #include "image.h"
+#include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -59,6 +60,13 @@ Image *verticalResize(Image *image, int newSize) {
   }
 
   return newImage;
+}
+
+int findDistance(Pixel *pixel1, Pixel *pixel2) {
+  double red = sqrt(abs(pow(pixel1->Red, 2) - pow(pixel2->Red, 2)));
+  double green = sqrt(abs(pow(pixel1->Green, 2) - pow(pixel2->Green, 2)));
+  double blue = sqrt(abs(pow(pixel1->Blue, 2) - pow(pixel2->Blue, 2)));
+  return (int)(red + green + blue);
 }
 
 // int main() {

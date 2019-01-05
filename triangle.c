@@ -1,5 +1,6 @@
 #include "imageTools.h"
 #include "image.h"
+#include "triangle.h"
 #include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
@@ -8,31 +9,11 @@
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
-typedef struct Triangle_s {
-  int x1;
-  int x2;
-  int x3;
-  int y1;
-  int y2;
-  int y3;
-  int minX;
-  int maxX;
-  int minY;
-  int maxY;
-} Triangle;
-
-typedef struct Error_s {
-  int vert;
-  int hor;
-  long int totalError;
-  unsigned int **pixelError;
-} Error;
-
 float findArea(int x1, int y1, int x2, int y2, int x3, int y3) {
   return abs( (float)(1.0 * x1 * (y2-y3) + x2 * (y3-y1) + x3 * (y1-y2)) / 2);
 }
 
-int isInside(int x, int y, Triangle *triangle) {
+int triIsInside(int x, int y, Triangle *triangle) {
   float a1 = findArea(x, y, triangle->x2, triangle->y2, triangle->x3, triangle->y3);
   float a2 = findArea(x, y, triangle->x1, triangle->y1, triangle->x3, triangle->y3);
   float a3 = findArea(x, y, triangle->x2, triangle->y2, triangle->x1, triangle->y1);
@@ -46,7 +27,7 @@ int isInside(int x, int y, Triangle *triangle) {
   return 0;
 }
 
-void setMinMax(Triangle *triangle) {
+void triSetMinMax(Triangle *triangle) {
   if(triangle->x1 < triangle->x2 && triangle->x1 < triangle->x3) {
     triangle->minX = triangle->x1;
   } else if(triangle->x2 < triangle->x3 && triangle->x2 < triangle->x1) {
@@ -77,36 +58,29 @@ void setMinMax(Triangle *triangle) {
   }
 }
 
-int findDistance(Pixel *pixel1, Pixel *pixel2) {
-  double red = sqrt(abs(pow(pixel1->Red, 2) - pow(pixel2->Red, 2)));
-  double green = sqrt(abs(pow(pixel1->Green, 2) - pow(pixel2->Green, 2)));
-  double blue = sqrt(abs(pow(pixel1->Blue, 2) - pow(pixel2->Blue, 2)));
-  return (int)(red + green + blue);
-}
-
-float randomV() {
+float triRandomV() {
   return 1.0 * rand() / RAND_MAX;
 }
 
 void addTriangle(Image *canvas, Image *original, Error *error, int iter, double opacity) {
   Triangle triangle;
-  triangle.x1 = (int) (randomV() * (canvas->hor));
-  triangle.x2 = (int) (randomV() * (canvas->hor));
-  triangle.x3 = (int) (randomV() * (canvas->hor));
-  triangle.y1 = (int) (randomV() * (canvas->vert));
-  triangle.y2 = (int) (randomV() * (canvas->vert));
-  triangle.y3 = (int) (randomV() * (canvas->vert));
+  triangle.x1 = (int) (triRandomV() * (canvas->hor));
+  triangle.x2 = (int) (triRandomV() * (canvas->hor));
+  triangle.x3 = (int) (triRandomV() * (canvas->hor));
+  triangle.y1 = (int) (triRandomV() * (canvas->vert));
+  triangle.y2 = (int) (triRandomV() * (canvas->vert));
+  triangle.y3 = (int) (triRandomV() * (canvas->vert));
 
   long unsigned int totalRed = 0ul;
   long unsigned int totalGreen = 0ul;
   long unsigned int totalBlue = 0ul;
   long unsigned int total = 0ul;
 
-  setMinMax(&triangle);
+  triSetMinMax(&triangle);
 
   for(int i = MAX(0, triangle.minY); i < MIN(canvas->vert, triangle.maxY); i++) {
     for(int j = MAX(0, triangle.minX); j < MIN(canvas->hor, triangle.maxX); j++) {
-      if(isInside(j, i, &triangle)) {
+      if(triIsInside(j, i, &triangle)) {
         total++;
         totalRed += original->Pixels[i/2][j/2].Red;
         totalGreen += original->Pixels[i/2][j/2].Green;
@@ -140,7 +114,7 @@ void addTriangle(Image *canvas, Image *original, Error *error, int iter, double 
 
   for(int i = MAX(0, triangle.minY); i < MIN(canvas->vert, triangle.maxY); i++) {
     for(int j = MAX(0, triangle.minX); j < MIN(canvas->hor, triangle.maxX); j++) {
-      if(isInside(j, i, &triangle)) {
+      if(triIsInside(j, i, &triangle)) {
         Pixel specificPixel;
         specificPixel.Red =  (int)(canvas->Pixels[i][j].Red * (1-opacity) + \
                                    avgPixel.Red * opacity);
@@ -172,9 +146,9 @@ void addTriangle(Image *canvas, Image *original, Error *error, int iter, double 
       newTriangle.y2 = triangle.y2;
       newTriangle.y3 = triangle.y3;
       valid = 0;
-      char whichMutation = (char)(6 * randomV());
-      char whichVertex = (char)(randomV() * 3);
-      char howExtreme = (char)(randomV() * 3);
+      char whichMutation = (char)(6 * triRandomV());
+      char whichVertex = (char)(triRandomV() * 3);
+      char howExtreme = (char)(triRandomV() * 3);
       int extreme = 0;
       if (howExtreme == 0) {
         extreme = 20;
@@ -191,63 +165,63 @@ void addTriangle(Image *canvas, Image *original, Error *error, int iter, double 
       switch(whichMutation) {
         case 0: // move one vertex a little on the x axis
           if (whichVertex == 0) {
-            newTriangle.x1 = (int) (randomV() * extreme - halfExtreme + newTriangle.x1);
+            newTriangle.x1 = (int) (triRandomV() * extreme - halfExtreme + newTriangle.x1);
           } else if (whichVertex == 1) {
-            newTriangle.x2 = (int) (randomV() * extreme - halfExtreme + newTriangle.x2);
+            newTriangle.x2 = (int) (triRandomV() * extreme - halfExtreme + newTriangle.x2);
           } else if (whichVertex == 2) {
-            newTriangle.x3 = (int) (randomV() * extreme - halfExtreme + newTriangle.x3);
+            newTriangle.x3 = (int) (triRandomV() * extreme - halfExtreme + newTriangle.x3);
           }
           break;
         case 1: // move one vertex a little on the y axis
           if (whichVertex == 0) {
-            newTriangle.y1 = (int) (randomV() * extreme - halfExtreme + newTriangle.y1);
+            newTriangle.y1 = (int) (triRandomV() * extreme - halfExtreme + newTriangle.y1);
           } else if (whichVertex == 1) {
-            newTriangle.y2 = (int) (randomV() * extreme - halfExtreme + newTriangle.y2);
+            newTriangle.y2 = (int) (triRandomV() * extreme - halfExtreme + newTriangle.y2);
           } else if (whichVertex == 2) {
-            newTriangle.y3 = (int) (randomV() * extreme - halfExtreme + newTriangle.y3);
+            newTriangle.y3 = (int) (triRandomV() * extreme - halfExtreme + newTriangle.y3);
           }
           break;
         case 2: // move one vertex to a random location
           if (whichVertex == 0) {
-            newTriangle.x1 = (int) (randomV() * (canvas->hor));
-            newTriangle.y1 = (int) (randomV() * (canvas->vert));
+            newTriangle.x1 = (int) (triRandomV() * (canvas->hor));
+            newTriangle.y1 = (int) (triRandomV() * (canvas->vert));
           } else if (whichVertex == 1) {
-            newTriangle.x2 = (int) (randomV() * (canvas->hor));
-            newTriangle.y2 = (int) (randomV() * (canvas->vert));
+            newTriangle.x2 = (int) (triRandomV() * (canvas->hor));
+            newTriangle.y2 = (int) (triRandomV() * (canvas->vert));
           } else if (whichVertex == 2) {
-            newTriangle.x3 = (int) (randomV() * (canvas->hor));
-            newTriangle.y3 = (int) (randomV() * (canvas->vert));
+            newTriangle.x3 = (int) (triRandomV() * (canvas->hor));
+            newTriangle.y3 = (int) (triRandomV() * (canvas->vert));
           }
           break;
         case 3: // move both vertices close to another
           if (whichVertex == 0) {
-            newTriangle.x2 = (int) (randomV() * extreme - halfExtreme + newTriangle.x1);
-            newTriangle.x3 = (int) (randomV() * extreme - halfExtreme + newTriangle.x1);
-            newTriangle.y2 = (int) (randomV() * extreme - halfExtreme + newTriangle.y1);
-            newTriangle.y3 = (int) (randomV() * extreme - halfExtreme + newTriangle.y1);
+            newTriangle.x2 = (int) (triRandomV() * extreme - halfExtreme + newTriangle.x1);
+            newTriangle.x3 = (int) (triRandomV() * extreme - halfExtreme + newTriangle.x1);
+            newTriangle.y2 = (int) (triRandomV() * extreme - halfExtreme + newTriangle.y1);
+            newTriangle.y3 = (int) (triRandomV() * extreme - halfExtreme + newTriangle.y1);
           } else if (whichVertex == 1) {
-            newTriangle.x1 = (int) (randomV() * extreme - halfExtreme + newTriangle.x2);
-            newTriangle.x3 = (int) (randomV() * extreme - halfExtreme + newTriangle.x2);
-            newTriangle.y1 = (int) (randomV() * extreme - halfExtreme + newTriangle.y2);
-            newTriangle.y3 = (int) (randomV() * extreme - halfExtreme + newTriangle.y2);
+            newTriangle.x1 = (int) (triRandomV() * extreme - halfExtreme + newTriangle.x2);
+            newTriangle.x3 = (int) (triRandomV() * extreme - halfExtreme + newTriangle.x2);
+            newTriangle.y1 = (int) (triRandomV() * extreme - halfExtreme + newTriangle.y2);
+            newTriangle.y3 = (int) (triRandomV() * extreme - halfExtreme + newTriangle.y2);
           } else if (whichVertex == 2) {
-            newTriangle.x2 = (int) (randomV() * extreme - halfExtreme + newTriangle.x3);
-            newTriangle.x1 = (int) (randomV() * extreme - halfExtreme + newTriangle.x3);
-            newTriangle.y2 = (int) (randomV() * extreme - halfExtreme + newTriangle.y3);
-            newTriangle.y1 = (int) (randomV() * extreme - halfExtreme + newTriangle.y3);
+            newTriangle.x2 = (int) (triRandomV() * extreme - halfExtreme + newTriangle.x3);
+            newTriangle.x1 = (int) (triRandomV() * extreme - halfExtreme + newTriangle.x3);
+            newTriangle.y2 = (int) (triRandomV() * extreme - halfExtreme + newTriangle.y3);
+            newTriangle.y1 = (int) (triRandomV() * extreme - halfExtreme + newTriangle.y3);
           }
           break;
         case 4: // new random triangle
-          newTriangle.x1 = (int) (randomV() * (canvas->hor));
-          newTriangle.y1 = (int) (randomV() * (canvas->vert));
-          newTriangle.x2 = (int) (randomV() * (canvas->hor));
-          newTriangle.y2 = (int) (randomV() * (canvas->vert));
-          newTriangle.x3 = (int) (randomV() * (canvas->hor));
-          newTriangle.y3 = (int) (randomV() * (canvas->vert));
+          newTriangle.x1 = (int) (triRandomV() * (canvas->hor));
+          newTriangle.y1 = (int) (triRandomV() * (canvas->vert));
+          newTriangle.x2 = (int) (triRandomV() * (canvas->hor));
+          newTriangle.y2 = (int) (triRandomV() * (canvas->vert));
+          newTriangle.x3 = (int) (triRandomV() * (canvas->hor));
+          newTriangle.y3 = (int) (triRandomV() * (canvas->vert));
           break;
         case 5: // shift triangle
-          shiftX = (randomV() * extreme - halfExtreme);
-          shiftY = (randomV() * extreme - halfExtreme);
+          shiftX = (triRandomV() * extreme - halfExtreme);
+          shiftY = (triRandomV() * extreme - halfExtreme);
           newTriangle.x1 = (newTriangle.x1 + shiftX);
           newTriangle.y1 = (newTriangle.y1 + shiftY);
           newTriangle.x2 = (newTriangle.x2 + shiftX);
@@ -257,60 +231,60 @@ void addTriangle(Image *canvas, Image *original, Error *error, int iter, double 
           break;
         // case 0:
         // case 19:
-        //   newTriangle.x1 = (int)(newTriangle.x1 + (randomV() * 100) - 50);
-        //   newTriangle.y1 = (int)(newTriangle.y1 + (randomV() * 100) - 50);
+        //   newTriangle.x1 = (int)(newTriangle.x1 + (triRandomV() * 100) - 50);
+        //   newTriangle.y1 = (int)(newTriangle.y1 + (triRandomV() * 100) - 50);
         //   break;
         // case 9:
         // case 20:
         //   //printf("%d\n", whichMutation);
         //   //printf("case before 0/9 - %d\n", newTriangle.x1);
-        //   newTriangle.x1 = (int)(newTriangle.x1 + (randomV() * 20) - 10);
-        //   newTriangle.y1 = (int)(newTriangle.y1 + (randomV() * 20) - 10);
+        //   newTriangle.x1 = (int)(newTriangle.x1 + (triRandomV() * 20) - 10);
+        //   newTriangle.y1 = (int)(newTriangle.y1 + (triRandomV() * 20) - 10);
         //   //printf("case after 0/9 - %d\n", newTriangle.x1);
         //   break;
         // case 1:
         // case 21:
-        //   newTriangle.x2 = (int)(newTriangle.x2 + (randomV() * 100) - 50);
-        //   newTriangle.y2 = (int)(newTriangle.y2 + (randomV() * 100) - 50);
+        //   newTriangle.x2 = (int)(newTriangle.x2 + (triRandomV() * 100) - 50);
+        //   newTriangle.y2 = (int)(newTriangle.y2 + (triRandomV() * 100) - 50);
         //   break;
         // case 10:
         // case 22:
         //   //printf("%d\n", whichMutation);
-        //   newTriangle.x2 = (int)(newTriangle.x2 + (randomV() * 20) - 10);
-        //   newTriangle.y2 = (int)(newTriangle.y2 + (randomV() * 20) - 10);
+        //   newTriangle.x2 = (int)(newTriangle.x2 + (triRandomV() * 20) - 10);
+        //   newTriangle.y2 = (int)(newTriangle.y2 + (triRandomV() * 20) - 10);
         //   break;
         // case 2:
         // case 23:
-        //   newTriangle.x3 = (int)(newTriangle.x3 + (randomV() * 100) - 50);
-        //   newTriangle.y3 = (int)(newTriangle.y3 + (randomV() * 100) - 50);
+        //   newTriangle.x3 = (int)(newTriangle.x3 + (triRandomV() * 100) - 50);
+        //   newTriangle.y3 = (int)(newTriangle.y3 + (triRandomV() * 100) - 50);
         //   break;
         // case 11:
         // case 24:
         //   //printf("%d\n", whichMutation);
-        //   newTriangle.x3 = (int)(newTriangle.x3 + (randomV() * 20) - 10);
-        //   newTriangle.y3 = (int)(newTriangle.y3 + (randomV() * 20) - 10);
+        //   newTriangle.x3 = (int)(newTriangle.x3 + (triRandomV() * 20) - 10);
+        //   newTriangle.y3 = (int)(newTriangle.y3 + (triRandomV() * 20) - 10);
         //   break;
         // case 3:
-        //   newTriangle.x1 = (int)(newTriangle.x1 + (randomV() * 100) - 50);
-        //   newTriangle.y1 = (int)(newTriangle.y1 + (randomV() * 100) - 50);
-        //   newTriangle.x2 = (int)(newTriangle.x2 + (randomV() * 100) - 50);
-        //   newTriangle.y2 = (int)(newTriangle.y2 + (randomV() * 100) - 50);
-        //   newTriangle.x3 = (int)(newTriangle.x3 + (randomV() * 100) - 50);
-        //   newTriangle.y3 = (int)(newTriangle.y3 + (randomV() * 100) - 50);
+        //   newTriangle.x1 = (int)(newTriangle.x1 + (triRandomV() * 100) - 50);
+        //   newTriangle.y1 = (int)(newTriangle.y1 + (triRandomV() * 100) - 50);
+        //   newTriangle.x2 = (int)(newTriangle.x2 + (triRandomV() * 100) - 50);
+        //   newTriangle.y2 = (int)(newTriangle.y2 + (triRandomV() * 100) - 50);
+        //   newTriangle.x3 = (int)(newTriangle.x3 + (triRandomV() * 100) - 50);
+        //   newTriangle.y3 = (int)(newTriangle.y3 + (triRandomV() * 100) - 50);
         //   break;
         // case 12:
         //   //printf("%d\n", whichMutation);
-        //   newTriangle.x1 = (int)(newTriangle.x1 + (randomV() * 20) - 10);
-        //   newTriangle.y1 = (int)(newTriangle.y1 + (randomV() * 20) - 10);
-        //   newTriangle.x2 = (int)(newTriangle.x2 + (randomV() * 20) - 10);
-        //   newTriangle.y2 = (int)(newTriangle.y2 + (randomV() * 20) - 10);
-        //   newTriangle.x3 = (int)(newTriangle.x3 + (randomV() * 20) - 10);
-        //   newTriangle.y3 = (int)(newTriangle.y3 + (randomV() * 20) - 10);
+        //   newTriangle.x1 = (int)(newTriangle.x1 + (triRandomV() * 20) - 10);
+        //   newTriangle.y1 = (int)(newTriangle.y1 + (triRandomV() * 20) - 10);
+        //   newTriangle.x2 = (int)(newTriangle.x2 + (triRandomV() * 20) - 10);
+        //   newTriangle.y2 = (int)(newTriangle.y2 + (triRandomV() * 20) - 10);
+        //   newTriangle.x3 = (int)(newTriangle.x3 + (triRandomV() * 20) - 10);
+        //   newTriangle.y3 = (int)(newTriangle.y3 + (triRandomV() * 20) - 10);
         //   break;
         // case 4:
         //   //printf("%d\n", whichMutation);
-        //   shiftX = (int)(randomV() * 150 - 75);
-        //   shiftY = (int)(randomV() * 150 - 75);
+        //   shiftX = (int)(triRandomV() * 150 - 75);
+        //   shiftY = (int)(triRandomV() * 150 - 75);
         //   newTriangle.x1 = (newTriangle.x1 + shiftX);
         //   newTriangle.y1 = (newTriangle.y1 + shiftY);
         //   newTriangle.x2 = (newTriangle.x2 + shiftX);
@@ -319,62 +293,62 @@ void addTriangle(Image *canvas, Image *original, Error *error, int iter, double 
         //   newTriangle.y3 = (newTriangle.y3 + shiftY);
         //   break;
         // case 5:
-        //   newTriangle.x1 = (int) (randomV() * (canvas->hor));
-        //   newTriangle.y1 = (int) (randomV() * (canvas->vert));
+        //   newTriangle.x1 = (int) (triRandomV() * (canvas->hor));
+        //   newTriangle.y1 = (int) (triRandomV() * (canvas->vert));
         //   break;
         // case 6:
-        //   newTriangle.x2 = (int) (randomV() * (canvas->hor));
-        //   newTriangle.y2 = (int) (randomV() * (canvas->vert));
+        //   newTriangle.x2 = (int) (triRandomV() * (canvas->hor));
+        //   newTriangle.y2 = (int) (triRandomV() * (canvas->vert));
         //   break;
         // case 7:
-        //   newTriangle.x3 = (int) (randomV() * (canvas->hor));
-        //   newTriangle.y3 = (int) (randomV() * (canvas->vert));
+        //   newTriangle.x3 = (int) (triRandomV() * (canvas->hor));
+        //   newTriangle.y3 = (int) (triRandomV() * (canvas->vert));
         //   break;
         // case 8:
         //   //printf("case before - %d\n", newTriangle.x1);
-        //   newTriangle.x1 = (int) (randomV() * (canvas->hor));
-        //   newTriangle.y1 = (int) (randomV() * (canvas->vert));
-        //   newTriangle.x2 = (int) (randomV() * (canvas->hor));
-        //   newTriangle.y2 = (int) (randomV() * (canvas->vert));
-        //   newTriangle.x3 = (int) (randomV() * (canvas->hor));
-        //   newTriangle.y3 = (int) (randomV() * (canvas->vert));
+        //   newTriangle.x1 = (int) (triRandomV() * (canvas->hor));
+        //   newTriangle.y1 = (int) (triRandomV() * (canvas->vert));
+        //   newTriangle.x2 = (int) (triRandomV() * (canvas->hor));
+        //   newTriangle.y2 = (int) (triRandomV() * (canvas->vert));
+        //   newTriangle.x3 = (int) (triRandomV() * (canvas->hor));
+        //   newTriangle.y3 = (int) (triRandomV() * (canvas->vert));
         //   //printf("case before - %d\n", newTriangle.x1);
         //   break;
         // case 13:
-        //   newTriangle.x2 = (int) (randomV() * 20 - 10 + newTriangle.x1);
-        //   newTriangle.x3 = (int) (randomV() * 20 - 10 + newTriangle.x1);
-        //   newTriangle.y2 = (int) (randomV() * 20 - 10 + newTriangle.y1);
-        //   newTriangle.y3 = (int) (randomV() * 20 - 10 + newTriangle.y1);
+        //   newTriangle.x2 = (int) (triRandomV() * 20 - 10 + newTriangle.x1);
+        //   newTriangle.x3 = (int) (triRandomV() * 20 - 10 + newTriangle.x1);
+        //   newTriangle.y2 = (int) (triRandomV() * 20 - 10 + newTriangle.y1);
+        //   newTriangle.y3 = (int) (triRandomV() * 20 - 10 + newTriangle.y1);
         //   break;
         // case 14:
-        //   newTriangle.x2 = (int) (randomV() * 50 - 25 + newTriangle.x1);
-        //   newTriangle.x3 = (int) (randomV() * 50 - 25 + newTriangle.x1);
-        //   newTriangle.y2 = (int) (randomV() * 50 - 25 + newTriangle.y1);
-        //   newTriangle.y3 = (int) (randomV() * 50 - 25 + newTriangle.y1);
+        //   newTriangle.x2 = (int) (triRandomV() * 50 - 25 + newTriangle.x1);
+        //   newTriangle.x3 = (int) (triRandomV() * 50 - 25 + newTriangle.x1);
+        //   newTriangle.y2 = (int) (triRandomV() * 50 - 25 + newTriangle.y1);
+        //   newTriangle.y3 = (int) (triRandomV() * 50 - 25 + newTriangle.y1);
         //   break;
         // case 15:
-        //   newTriangle.x2 = (int) (randomV() * 20 - 10 + newTriangle.x1);
-        //   newTriangle.x3 = (int) (randomV() * 20 - 10 + newTriangle.x1);
-        //   newTriangle.y2 = (int) (randomV() * 20 - 10 + newTriangle.y1);
-        //   newTriangle.y3 = (int) (randomV() * 20 - 10 + newTriangle.y1);
+        //   newTriangle.x2 = (int) (triRandomV() * 20 - 10 + newTriangle.x1);
+        //   newTriangle.x3 = (int) (triRandomV() * 20 - 10 + newTriangle.x1);
+        //   newTriangle.y2 = (int) (triRandomV() * 20 - 10 + newTriangle.y1);
+        //   newTriangle.y3 = (int) (triRandomV() * 20 - 10 + newTriangle.y1);
         //   break;
         // case 16:
-        //   newTriangle.x2 = (int) (randomV() * 50 - 25 + newTriangle.x1);
-        //   newTriangle.x3 = (int) (randomV() * 50 - 25 + newTriangle.x1);
-        //   newTriangle.y2 = (int) (randomV() * 50 - 25 + newTriangle.y1);
-        //   newTriangle.y3 = (int) (randomV() * 50 - 25 + newTriangle.y1);
+        //   newTriangle.x2 = (int) (triRandomV() * 50 - 25 + newTriangle.x1);
+        //   newTriangle.x3 = (int) (triRandomV() * 50 - 25 + newTriangle.x1);
+        //   newTriangle.y2 = (int) (triRandomV() * 50 - 25 + newTriangle.y1);
+        //   newTriangle.y3 = (int) (triRandomV() * 50 - 25 + newTriangle.y1);
         //   break;
         // case 17:
-        //   newTriangle.x2 = (int) (randomV() * 20 - 10 + newTriangle.x1);
-        //   newTriangle.x3 = (int) (randomV() * 20 - 10 + newTriangle.x1);
-        //   newTriangle.y2 = (int) (randomV() * 20 - 10 + newTriangle.y1);
-        //   newTriangle.y3 = (int) (randomV() * 20 - 10 + newTriangle.y1);
+        //   newTriangle.x2 = (int) (triRandomV() * 20 - 10 + newTriangle.x1);
+        //   newTriangle.x3 = (int) (triRandomV() * 20 - 10 + newTriangle.x1);
+        //   newTriangle.y2 = (int) (triRandomV() * 20 - 10 + newTriangle.y1);
+        //   newTriangle.y3 = (int) (triRandomV() * 20 - 10 + newTriangle.y1);
         //   break;
         // case 18:
-        //   newTriangle.x2 = (int) (randomV() * 50 - 25 + newTriangle.x1);
-        //   newTriangle.x3 = (int) (randomV() * 50 - 25 + newTriangle.x1);
-        //   newTriangle.y2 = (int) (randomV() * 50 - 25 + newTriangle.y1);
-        //   newTriangle.y3 = (int) (randomV() * 50 - 25 + newTriangle.y1);
+        //   newTriangle.x2 = (int) (triRandomV() * 50 - 25 + newTriangle.x1);
+        //   newTriangle.x3 = (int) (triRandomV() * 50 - 25 + newTriangle.x1);
+        //   newTriangle.y2 = (int) (triRandomV() * 50 - 25 + newTriangle.y1);
+        //   newTriangle.y3 = (int) (triRandomV() * 50 - 25 + newTriangle.y1);
         //     break;
         default:
           printf("Something went wrong\n");
@@ -392,7 +366,7 @@ void addTriangle(Image *canvas, Image *original, Error *error, int iter, double 
       }
     }
 
-    setMinMax(&newTriangle);
+    triSetMinMax(&newTriangle);
     //printf("x1 = %d, x2 = %d, x3 = %d, y1 = %d, y2 = %d, y3 = %d\n", newTriangle.x1, newTriangle.x2, newTriangle.x3, newTriangle.y1, newTriangle.y2, newTriangle.y3);
 
     totalRed = 0ul;
@@ -402,7 +376,7 @@ void addTriangle(Image *canvas, Image *original, Error *error, int iter, double 
 
     for(int i = MAX(0, newTriangle.minY); i < MIN(canvas->vert, newTriangle.maxY); i++) {
       for(int j = MAX(0, newTriangle.minX); j < MIN(canvas->hor, newTriangle.maxX); j++) {
-        if(isInside(j, i, &newTriangle)) {
+        if(triIsInside(j, i, &newTriangle)) {
           total++;
           totalRed += original->Pixels[i/2][j/2].Red;
           totalGreen += original->Pixels[i/2][j/2].Green;
@@ -428,7 +402,7 @@ void addTriangle(Image *canvas, Image *original, Error *error, int iter, double 
 
       for(int i = MAX(0, newTriangle.minY); i < MIN(canvas->vert, newTriangle.maxY); i++) {
         for(int j = MAX(0, newTriangle.minX); j < MIN(canvas->hor, newTriangle.maxX); j++) {
-          if(isInside(j, i, &newTriangle)) {
+          if(triIsInside(j, i, &newTriangle)) {
             Pixel specificPixel;
             specificPixel.Red =  (int)(canvas->Pixels[i][j].Red * (1-opacity) + \
                                        newAvgPixel.Red * opacity);
@@ -457,7 +431,7 @@ void addTriangle(Image *canvas, Image *original, Error *error, int iter, double 
 
   for(int i = MAX(0, triangle.minY); i < MIN(canvas->vert, triangle.maxY); i++) {
     for(int j = MAX(0, triangle.minX); j < MIN(canvas->hor, triangle.maxX); j++) {
-      if(isInside(j, i, &triangle)) {
+      if(triIsInside(j, i, &triangle)) {
         Pixel specificPixel;
         specificPixel.Red =  (int)(canvas->Pixels[i][j].Red * (1-opacity) + \
                                    avgPixel.Red * opacity);
@@ -475,78 +449,78 @@ void addTriangle(Image *canvas, Image *original, Error *error, int iter, double 
 
 }
 
-int main() {
-  //printf("blow up: %d", 1 / 0);
-  fflush(stdout);
-  srand(time(0));
-  Image *original = readImage("lbj.bmp");
-  Image *resizedOriginal;
-  if(original->vert > original->hor) {
-    resizedOriginal = verticalResize(original, 540);
-  } else {
-    resizedOriginal = horizontalResize(original, 540);
-  }
-  freeImage(original);
-  long unsigned int totalRed = 0ul;
-  long unsigned int totalGreen = 0ul;
-  long unsigned int totalBlue = 0ul;
-  long unsigned int total = resizedOriginal->vert * resizedOriginal->hor;
-
-  for(int i = 0; i < resizedOriginal->vert; i++) {
-    for(int j = 0; j < resizedOriginal->hor; j++) {
-      totalRed += resizedOriginal->Pixels[i][j].Red;
-      totalGreen += resizedOriginal->Pixels[i][j].Green;
-      totalBlue += resizedOriginal->Pixels[i][j].Blue;
-    }
-  }
-
-  unsigned char avgRed = totalRed / total;
-  unsigned char avgGreen = totalGreen / total;
-  unsigned char avgBlue = totalBlue / total;
-
-  Image *canvas = malloc(sizeof(Image));
-  Error *error = malloc(sizeof(Error));
-  error->totalError = 0;
-  canvas->vert = resizedOriginal->vert * 2;
-  canvas->hor = resizedOriginal->hor * 2;
-  error->vert = canvas->vert;
-  error->hor = canvas->hor;
-  canvas->Pixels = malloc(sizeof(Pixel*) * canvas->vert);
-  error->pixelError = malloc(sizeof(unsigned int*) * error->vert);
-  for(int i = 0; i < canvas->vert; i++) {
-    canvas->Pixels[i] = malloc(sizeof(Pixel) * canvas->hor);
-    error->pixelError[i] = malloc(sizeof(unsigned int) * error->hor);
-  }
-
-
-
-  for(int i = 0; i < canvas->vert; i++) {
-    for(int j = 0; j < canvas->hor; j++) {
-      canvas->Pixels[i][j].Red = avgRed;
-      canvas->Pixels[i][j].Green = avgGreen;
-      canvas->Pixels[i][j].Blue = avgBlue;
-      int distance = findDistance(&(canvas->Pixels[i][j]), \
-                                  &(resizedOriginal->Pixels[i/2][j/2]));
-      error->pixelError[i][j] = distance;
-      error->totalError += distance;
-    }
-  }
-
-  //printf("%ld\n", error->totalError);
-  for(int i = 0; i < 400; i++) {
-    printf("%d\n", i);
-    char filename[14];
-    if(i<10) {
-      sprintf(filename, "result00%d.bmp", i);
-    } else if (i < 100) {
-      sprintf(filename, "result0%d.bmp", i);
-    } else {
-      sprintf(filename, "result%d.bmp", i);
-    }
-    writeImage(canvas, filename);
-    addTriangle(canvas, resizedOriginal, error, 1000, .7);
-  }
-  writeImage(canvas, "result400.bmp");
-  //writeImage(resizedOriginal, "result2.bmp");
-
-}
+// int main() {
+//   //printf("blow up: %d", 1 / 0);
+//   fflush(stdout);
+//   srand(time(0));
+//   Image *original = readImage("lbj.bmp");
+//   Image *resizedOriginal;
+//   if(original->vert > original->hor) {
+//     resizedOriginal = verticalResize(original, 540);
+//   } else {
+//     resizedOriginal = horizontalResize(original, 540);
+//   }
+//   freeImage(original);
+//   long unsigned int totalRed = 0ul;
+//   long unsigned int totalGreen = 0ul;
+//   long unsigned int totalBlue = 0ul;
+//   long unsigned int total = resizedOriginal->vert * resizedOriginal->hor;
+//
+//   for(int i = 0; i < resizedOriginal->vert; i++) {
+//     for(int j = 0; j < resizedOriginal->hor; j++) {
+//       totalRed += resizedOriginal->Pixels[i][j].Red;
+//       totalGreen += resizedOriginal->Pixels[i][j].Green;
+//       totalBlue += resizedOriginal->Pixels[i][j].Blue;
+//     }
+//   }
+//
+//   unsigned char avgRed = totalRed / total;
+//   unsigned char avgGreen = totalGreen / total;
+//   unsigned char avgBlue = totalBlue / total;
+//
+//   Image *canvas = malloc(sizeof(Image));
+//   Error *error = malloc(sizeof(Error));
+//   error->totalError = 0;
+//   canvas->vert = resizedOriginal->vert * 2;
+//   canvas->hor = resizedOriginal->hor * 2;
+//   error->vert = canvas->vert;
+//   error->hor = canvas->hor;
+//   canvas->Pixels = malloc(sizeof(Pixel*) * canvas->vert);
+//   error->pixelError = malloc(sizeof(unsigned int*) * error->vert);
+//   for(int i = 0; i < canvas->vert; i++) {
+//     canvas->Pixels[i] = malloc(sizeof(Pixel) * canvas->hor);
+//     error->pixelError[i] = malloc(sizeof(unsigned int) * error->hor);
+//   }
+//
+//
+//
+//   for(int i = 0; i < canvas->vert; i++) {
+//     for(int j = 0; j < canvas->hor; j++) {
+//       canvas->Pixels[i][j].Red = avgRed;
+//       canvas->Pixels[i][j].Green = avgGreen;
+//       canvas->Pixels[i][j].Blue = avgBlue;
+//       int distance = findDistance(&(canvas->Pixels[i][j]), \
+//                                   &(resizedOriginal->Pixels[i/2][j/2]));
+//       error->pixelError[i][j] = distance;
+//       error->totalError += distance;
+//     }
+//   }
+//
+//   //printf("%ld\n", error->totalError);
+//   for(int i = 0; i < 400; i++) {
+//     printf("%d\n", i);
+//     char filename[14];
+//     if(i<10) {
+//       sprintf(filename, "result00%d.bmp", i);
+//     } else if (i < 100) {
+//       sprintf(filename, "result0%d.bmp", i);
+//     } else {
+//       sprintf(filename, "result%d.bmp", i);
+//     }
+//     writeImage(canvas, filename);
+//     addTriangle(canvas, resizedOriginal, error, 1000, .7);
+//   }
+//   writeImage(canvas, "result400.bmp");
+//   //writeImage(resizedOriginal, "result2.bmp");
+//
+// }
